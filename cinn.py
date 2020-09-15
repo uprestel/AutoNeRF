@@ -159,10 +159,10 @@ class ConditionalTransformer(nn.Module):
         n_flows = retrieve(config, "Transformer/n_flows")
         conditioning_option = retrieve(config, "Transformer/conditioning_option")
         flowactivation = retrieve(config, "Transformer/activation", default="lrelu")
-        embedding_channels = retrieve(config, "Transformer/embedding_channels", default=in_channels)
+        #embedding_channels = retrieve(config, "Transformer/embedding_channels", default=in_channels)
         n_down = retrieve(config, "Transformer/embedder_down", default=4)
 
-        self.emb_channels = embedding_channels
+        #self.emb_channels = embedding_channels
         self.in_channels = in_channels
 
         self.flow = ConditionalFlow(in_channels=in_channels, embedding_dim=self.emb_channels, hidden_dim=mid_channels,
