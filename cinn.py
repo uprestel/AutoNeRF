@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 
-from blocks import ActNorm, ConditionalFlow, FeatureLayer, DenseEncoderLayer
+from AutoNeRF.blocks import ActNorm, ConditionalFlow, FeatureLayer, DenseEncoderLayer
 
 
 def retrieve(
