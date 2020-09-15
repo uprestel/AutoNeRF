@@ -3,10 +3,93 @@ learned."""
 import torch
 import torch.nn as nn
 import numpy as np
-from edflow.util import retrieve
 
-from invariances.model.blocks import ActNorm, ConditionalFlow, FeatureLayer, DenseEncoderLayer
-from invariances.util.ckpt_util import get_ckpt_path, URL_MAP, CONFIG_MAP
+
+from blocks import ActNorm, ConditionalFlow, FeatureLayer, DenseEncoderLayer
+
+
+def retrieve(
+    list_or_dict, key, splitval="/", default=None, expand=True, pass_success=False
+):
+    """Given a nested list or dict return the desired value at key expanding
+    callable nodes if necessary and :attr:`expand` is ``True``. The expansion
+    is done in-place.
+    Parameters
+    ----------
+        list_or_dict : list or dict
+            Possibly nested list or dictionary.
+        key : str
+            key/to/value, path like string describing all keys necessary to
+            consider to get to the desired value. List indices can also be
+            passed here.
+        splitval : str
+            String that defines the delimiter between keys of the
+            different depth levels in `key`.
+        default : obj
+            Value returned if :attr:`key` is not found.
+        expand : bool
+            Whether to expand callable nodes on the path or not.
+    Returns
+    -------
+        The desired value or if :attr:`default` is not ``None`` and the
+        :attr:`key` is not found returns ``default``.
+    Raises
+    ------
+        Exception if ``key`` not in ``list_or_dict`` and :attr:`default` is
+        ``None``.
+    """
+
+    keys = key.split(splitval)
+
+    success = True
+    try:
+        visited = []
+        parent = None
+        last_key = None
+        for key in keys:
+            if callable(list_or_dict):
+                if not expand:
+                    raise KeyNotFoundError(
+                        ValueError(
+                            "Trying to get past callable node with expand=False."
+                        ),
+                        keys=keys,
+                        visited=visited,
+                    )
+                list_or_dict = list_or_dict()
+                parent[last_key] = list_or_dict
+
+            last_key = key
+            parent = list_or_dict
+
+            try:
+                if isinstance(list_or_dict, dict):
+                    list_or_dict = list_or_dict[key]
+                else:
+                    list_or_dict = list_or_dict[int(key)]
+            except (KeyError, IndexError, ValueError) as e:
+                raise KeyNotFoundError(e, keys=keys, visited=visited)
+
+            visited += [key]
+        # final expansion of retrieved value
+        if expand and callable(list_or_dict):
+            list_or_dict = list_or_dict()
+            parent[last_key] = list_or_dict
+    except KeyNotFoundError as e:
+        if default is None:
+            raise e
+        else:
+            list_or_dict = default
+            success = False
+
+    if not pass_success:
+        return list_or_dict
+    else:
+        return list_or_dict, success
+
+
+
+
 
 
 class DenseEmbedder(nn.Module):
@@ -137,5 +220,228 @@ class ConditionalTransformer(nn.Module):
     #     model.load_state_dict(torch.load(ckpt, map_location=torch.device("cpu")))
     #     model.eval()
     #     return model
+    
+    
+CONFIG_MAP = {
+    "cinn_alexnet_aae_conv5":
+        {"Transformer": {
+              "activation": "none",
+              "conditioning_option": "none",
+              "hidden_depth": 2,
+              "in_channels": 128,
+              "mid_channels": 1024,
+              "n_flows": 20,
+              "conditioning_in_channels": 256,
+              "conditioning_spatial_size": 13,
+              "embedder_down": 2,
+            }
+        },
+    "cinn_alexnet_aae_fc6":
+        {"Transformer": {
+                      "activation": "none",
+                      "conditioning_option": "none",
+                      "hidden_depth": 2,
+                      "in_channels": 128,
+                      "mid_channels": 1024,
+                      "n_flows": 20,
+                      "conditioning_in_channels": 4096,
+                      "conditioning_spatial_size": 1,
+                      "embedder_down": 3,
+                    }
+                },
+    "cinn_alexnet_aae_fc7":
+        {"Transformer": {
+                      "activation": "none",
+                      "conditioning_option": "none",
+                      "hidden_depth": 2,
+                      "in_channels": 128,
+                      "mid_channels": 1024,
+                      "n_flows": 20,
+                      "conditioning_in_channels": 4096,
+                      "conditioning_spatial_size": 1,
+                      "embedder_down": 3,
+                    }
+                },
+    "cinn_alexnet_aae_fc8":
+        {"Transformer": {
+                      "activation": "none",
+                      "conditioning_option": "none",
+                      "hidden_depth": 2,
+                      "in_channels": 128,
+                      "mid_channels": 1024,
+                      "n_flows": 20,
+                      "conditioning_in_channels": 1000,
+                      "conditioning_spatial_size": 1,
+                      "embedder_down": 3,
+                    }
+                },
+    "cinn_alexnet_aae_softmax":
+        {"Transformer": {
+            "activation": "none",
+            "conditioning_option": "none",
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 1000,
+            "conditioning_spatial_size": 1,
+            "embedder_down": 3,
+            }
+        },
+    "cinn_stylizedresnet_avgpool":
+        {"Transformer": {
+            "activation": "none",
+            "conditioning_option": "none",
+            "hidden_depth": 2,
+            "in_channels": 268,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 2048,
+            "conditioning_spatial_size": 1,
+            "embedder_down": 3,
+            }
+        },
+    "cinn_resnet_avgpool":
+        {"Transformer": {
+            "activation": "none",
+            "conditioning_option": "none",
+            "hidden_depth": 2,
+            "in_channels": 268,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 2048,
+            "conditioning_spatial_size": 1,
+            "embedder_down": 3,
+            }
+        },
+    "resnet101_animalfaces_shared":
+        {"Model": {
+            "n_classes": 149,
+            "type": "resnet101"
+            }
+        },
 
-
+    "resnet101_animalfaces_10":
+        {"Model": {
+                "n_classes": 10,
+                "type": "resnet101"
+                }
+        },
+    "cinn_resnet_animalfaces10_ae_maxpool":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 64,
+            "conditioning_spatial_size": 56,
+            "embedder_down": 4,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_input":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 3,
+            "conditioning_spatial_size": 224,
+            "embedder_down": 5,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_layer1":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 256,
+            "conditioning_spatial_size": 56,
+            "embedder_down": 4,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_layer2":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 512,
+            "conditioning_spatial_size": 28,
+            "embedder_down": 3,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_layer3":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 1024,
+            "conditioning_spatial_size": 14,
+            "embedder_down": 2,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_layer4":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 2048,
+            "conditioning_spatial_size": 7,
+            "embedder_down": 1,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_avgpool":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 2048,
+            "conditioning_spatial_size": 1,
+            "conditioning_depth": 6,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_fc":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 10,
+            "conditioning_spatial_size": 1,
+            "conditioning_depth": 4,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+    "cinn_resnet_animalfaces10_ae_softmax":
+        {"Transformer": {
+            "hidden_depth": 2,
+            "in_channels": 128,
+            "mid_channels": 1024,
+            "n_flows": 20,
+            "conditioning_in_channels": 10,
+            "conditioning_spatial_size": 1,
+            "conditioning_depth": 4,
+            "activation": "none",
+            "conditioning_option": "none"
+            }
+        },
+}
