@@ -212,9 +212,9 @@ class ConditionalTransformer(nn.Module):
                                     activation=flowactivation)
 
         if conditioning_spatial_size == 1:
-            depth = retrieve(config, "Transformer/conditioning_depth",
+            depth = 4 #retrieve(config, "Transformer/conditioning_depth",
                              default=4)
-            dims = retrieve(config, "Transformer/conditioning_dims",
+            dims = "none" #retrieve(config, "Transformer/conditioning_dims",
                             default="none")
             dims = None if dims == "none" else dims
             self.embedder = DenseEmbedder(conditioning_in_channels,
