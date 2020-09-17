@@ -93,8 +93,12 @@ def retrieve(
 
 
 class DenseEmbedder(nn.Module):
-    """Basically an MLP. Maps vector-like features to some other vector of given dimenionality"""
-
+    """
+        Basically an MLP. Maps vector-like features to some other vector of given dimenionality
+    
+        This implements H(y) as definged in the paper
+    """
+      
     def __init__(self, in_dim, up_dim, depth=4, given_dims=None):
         super().__init__()
         self.net = nn.ModuleList()
@@ -117,28 +121,32 @@ class DenseEmbedder(nn.Module):
         return x.squeeze(-1).squeeze(-1)
 
 
-class Embedder(nn.Module):
-    """Embeds a 4-dim tensor onto dense latent code."""
+# class Embedder(nn.Module):
+    # """Embeds a 4-dim tensor onto dense latent code.
+    
+    # TODO: annotate
+    
+    # """
 
-    def __init__(self, in_spatial_size, in_channels, emb_dim, n_down=4):
-        super().__init__()
-        self.feature_layers = nn.ModuleList()
-        norm = 'an'  # hard coded
-        bottleneck_size = in_spatial_size // 2 ** n_down
-        self.feature_layers.append(FeatureLayer(0, in_channels=in_channels, norm=norm))
-        for scale in range(1, n_down):
-            self.feature_layers.append(FeatureLayer(scale, norm=norm))
-        self.dense_encode = DenseEncoderLayer(n_down, bottleneck_size, emb_dim)
-        if n_down == 1:
-            print(" Warning: Embedder for ConditionalTransformer has only one down-sampling step. You might want to "
-                  "increase its capacity.")
+    # def __init__(self, in_spatial_size, in_channels, emb_dim, n_down=4):
+        # super().__init__()
+        # self.feature_layers = nn.ModuleList()
+        # norm = 'an'  # hard coded
+        # bottleneck_size = in_spatial_size // 2 ** n_down
+        # self.feature_layers.append(FeatureLayer(0, in_channels=in_channels, norm=norm))
+        # for scale in range(1, n_down):
+            # self.feature_layers.append(FeatureLayer(scale, norm=norm))
+        # self.dense_encode = DenseEncoderLayer(n_down, bottleneck_size, emb_dim)
+        # if n_down == 1:
+            # print(" Warning: Embedder for ConditionalTransformer has only one down-sampling step. You might want to "
+                  # "increase its capacity.")
 
-    def forward(self, input):
-        h = input
-        for layer in self.feature_layers:
-            h = layer(h)
-        h = self.dense_encode(h)
-        return h.squeeze(-1).squeeze(-1)
+    # def forward(self, input):
+        # h = input
+        # for layer in self.feature_layers:
+            # h = layer(h)
+        # h = self.dense_encode(h)
+        # return h.squeeze(-1).squeeze(-1)
 
 
 class ConditionalTransformer(nn.Module):
@@ -148,28 +156,61 @@ class ConditionalTransformer(nn.Module):
     (i.e. a tensor of shape BxC)
     """
     def __init__(self, config):
+        """
+            self.in_channels = in_channels                  # the size of the input. This should be divisible by 2.
+            self.cond_channels = embedding_dim              # the size of the conditional H(y).
+            self.mid_channels = hidden_dim                  # the dimension of the hidden layers for s and t.
+            self.num_blocks = hidden_depth                  # number of hidden layers / depth in s_theta and t_theta respectively
+            self.n_flows = n_flows                          # number of cINN blocks in our final network
+            self.conditioning_option = conditioning_option  # how the conditioning y is handled. Possible values: none, sequential, parallel
+        """
+    
         import torch.backends.cudnn as cudnn
         cudnn.benchmark = True
         super().__init__()
         self.config = config
-        # get all the hyperparameters
+        # -------- get all the hyperparameters ---------
+        
+        # the size of the input. This should be divisible by 2.
         in_channels = retrieve(config, "Transformer/in_channels")
+        
+        # the dimension of the hidden layers for s and t.
         mid_channels = retrieve(config, "Transformer/mid_channels")
+        
+        # number of hidden layers / depth in s_theta and t_theta respectively
         hidden_depth = retrieve(config, "Transformer/hidden_depth")
+        
+        # number of cINN blocks in our final network
         n_flows = retrieve(config, "Transformer/n_flows")
+        
+        # how the conditioning y is handled. Possible values: none, sequential, parallel
         conditioning_option = retrieve(config, "Transformer/conditioning_option")
+        
+        # the activation function of s and t respectively.
         flowactivation = retrieve(config, "Transformer/activation", default="lrelu")
-        #embedding_channels = retrieve(config, "Transformer/embedding_channels", default=in_channels)
+        
+        # TODO: annotate
+        embedding_channels = 2# retrieve(config, "Transformer/embedding_channels", default=in_channels)
+        
+        # TODO: annotate
         n_down = retrieve(config, "Transformer/embedder_down", default=4)
 
-        #self.emb_channels = embedding_channels
+        # Number of the dimensions of the input y of H(y) in the paper. 
+        # ** we choose =1 **, since we want a fully connected embedder
+        conditioning_spatial_size = 1 #retrieve(config, "Transformer/conditioning_spatial_size")
+        
+        # the dimension of the input of our conditioning network H
+        conditioning_in_channels = retrieve(config, "Transformer/conditioning_in_channels")
+
+        # ------------------------------------------------
+
+        self.emb_channels = embedding_channels
         self.in_channels = in_channels
 
         self.flow = ConditionalFlow(in_channels=in_channels, embedding_dim=self.emb_channels, hidden_dim=mid_channels,
                                     hidden_depth=hidden_depth, n_flows=n_flows, conditioning_option=conditioning_option,
                                     activation=flowactivation)
-        conditioning_spatial_size = retrieve(config, "Transformer/conditioning_spatial_size")
-        conditioning_in_channels = retrieve(config, "Transformer/conditioning_in_channels")
+
         if conditioning_spatial_size == 1:
             depth = retrieve(config, "Transformer/conditioning_depth",
                              default=4)
@@ -181,7 +222,8 @@ class ConditionalTransformer(nn.Module):
                                           depth=depth,
                                           given_dims=dims)
         else:
-            self.embedder = Embedder(conditioning_spatial_size, conditioning_in_channels, in_channels, n_down=n_down)
+            pass
+            #self.embedder = Embedder(conditioning_spatial_size, conditioning_in_channels, in_channels, n_down=n_down)
 
     def embed(self, conditioning):
         # embed it via embedding layer

@@ -4,6 +4,9 @@ import functools
 
 
 class BasicFullyConnectedNet(nn.Module):
+    """
+        This class implements the architectures used in s and t.
+    """
     def __init__(self, dim, depth, hidden_dim=256, use_tanh=False, use_bn=False, out_dim=None):
         super(BasicFullyConnectedNet, self).__init__()
         layers = []
@@ -26,6 +29,9 @@ class BasicFullyConnectedNet(nn.Module):
 
 
 class ActNorm(nn.Module):
+    """
+        TODO: Annotate
+    """
     def __init__(self, num_features, logdet=False, affine=True):
         assert affine
         super().__init__()
@@ -104,12 +110,12 @@ class ConditionalFlow(nn.Module):
     def __init__(self, in_channels, embedding_dim, hidden_dim, hidden_depth,
                  n_flows, conditioning_option="none", activation='lrelu'):
         super().__init__()
-        self.in_channels = in_channels
-        self.cond_channels = embedding_dim
-        self.mid_channels = hidden_dim
-        self.num_blocks = hidden_depth
-        self.n_flows = n_flows
-        self.conditioning_option = conditioning_option
+        self.in_channels = in_channels                  # the size of the input. This should be divisible by 2.
+        self.cond_channels = embedding_dim              # the size of the conditional H(y).
+        self.mid_channels = hidden_dim                  # the dimension of the hidden layers for s and t.
+        self.num_blocks = hidden_depth                  # number of hidden layers / depth in s_theta and t_theta respectively
+        self.n_flows = n_flows                          # number of cINN blocks in our final network
+        self.conditioning_option = conditioning_option  # how the conditioning y is handled. Possible values: none, sequential, parallel
 
         self.sub_layers = nn.ModuleList()
         if self.conditioning_option.lower() != "none":
@@ -151,8 +157,21 @@ class ConditionalFlow(nn.Module):
 
 
 class ConditionalDoubleVectorCouplingBlock(nn.Module):
+    """
+        This implements s_theta and t_theta as defined in the paper.
+    """
     def __init__(self, in_channels, cond_channels, hidden_dim, depth=2):
+        """
+            in_channels: the size of the input. This should be divisible by 2.
+            cond_channels: the size of the conditional H(y).
+        """
+        
         super(ConditionalDoubleVectorCouplingBlock, self).__init__()
+        
+        
+        # since we split the input into two halves, we only feed s and t respectively 
+        # the input size in_channels // 2 + cond_channels.
+        
         self.s = nn.ModuleList([
             BasicFullyConnectedNet(dim=in_channels // 2 + cond_channels, depth=depth,
                                    hidden_dim=hidden_dim, use_tanh=True,
@@ -194,6 +213,9 @@ class ConditionalDoubleVectorCouplingBlock(nn.Module):
 
 
 class ConditionalFlatDoubleCouplingFlowBlock(nn.Module):
+    """
+        Implementaion of the actual double coupling in the cINN.
+    """
     def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth, activation="lrelu"):
         super().__init__()
         __possible_activations = {"lrelu": InvLeakyRelu,
@@ -233,6 +255,9 @@ class ConditionalFlatDoubleCouplingFlowBlock(nn.Module):
 
 
 class Shuffle(nn.Module):
+    """
+        TODO: Annotate
+    """
     def __init__(self, in_channels, **kwargs):
         super(Shuffle, self).__init__()
         self.in_channels = in_channels
@@ -289,6 +314,9 @@ class InvParametricRelu(InvLeakyRelu):
 
 
 class FeatureLayer(nn.Module):
+    """
+        TODO: Annotate
+    """
     def __init__(self, scale, in_channels=None, norm='AN', width_multiplier=1):
         super().__init__()
 
@@ -329,6 +357,9 @@ class FeatureLayer(nn.Module):
 
 
 class DenseEncoderLayer(nn.Module):
+    """
+        TODO: Annotate
+    """
     def __init__(self, scale, spatial_size, out_size, in_channels=None,
                  width_multiplier=1):
         super().__init__()
