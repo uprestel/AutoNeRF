@@ -213,7 +213,7 @@ class ConditionalTransformer(nn.Module):
 
         if conditioning_spatial_size == 1:
             depth = 4 #retrieve(config, "Transformer/conditioning_depth",
-                             default=4)
+                             #default=4)
             dims = "none" #retrieve(config, "Transformer/conditioning_dims",
                             default="none")
             dims = None if dims == "none" else dims
