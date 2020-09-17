@@ -215,7 +215,7 @@ class ConditionalTransformer(nn.Module):
             depth = 4 #retrieve(config, "Transformer/conditioning_depth",
                              #default=4)
             dims = "none" #retrieve(config, "Transformer/conditioning_dims",
-                            default="none")
+                            #default="none")
             dims = None if dims == "none" else dims
             self.embedder = DenseEmbedder(conditioning_in_channels,
                                           in_channels,
