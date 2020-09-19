@@ -135,7 +135,7 @@ def positional_encoding(
 
 class NeRF(torch.nn.Module):
     def __init__(self, *args, **kwargs):
-        super(TinyNerfModel, self).__init__()
+        super(NeRF, self).__init__()
         
         
         self.model = nn.Sequential([
