@@ -324,7 +324,7 @@ class NeRF():
 	                             near_thresh, far_thresh, depth_samples_per_ray,
 	                             encoding_function, get_minibatches_function):
 	    with torch.no_grad():
-	        prediction = run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
+	        prediction = self.run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
 	                             self.near_thresh, self.far_thresh, self.depth_samples_per_ray,
 	                             encoding_function, get_minibatches_function)
 	    torch.cuda.empty_cache()
@@ -355,7 +355,7 @@ class NeRF():
 			target_tform_cam2world = tform_cam2world[target_img_idx].to(device)
 
 			# Run one iteration of TinyNeRF and get the rendered RGB image.
-			rgb_predicted = run_one_iter_of_tinynerf(height, width, focal_length,
+			rgb_predicted = self.run_one_iter_of_tinynerf(height, width, focal_length,
 			                                       target_tform_cam2world, self.near_thresh,
 			                                       self.far_thresh, self.depth_samples_per_ray,
 			                                       self.encode, get_minibatches)
@@ -369,7 +369,7 @@ class NeRF():
 			# Display images/plots/stats
 			if i % display_every == 0:
 				# Render the held-out view
-				rgb_predicted = run_one_iter_of_tinynerf(height, width, focal_length,
+				rgb_predicted = self.run_one_iter_of_tinynerf(height, width, focal_length,
 				                                         testpose, self.near_thresh,
 				                                         self.far_thresh, self.depth_samples_per_ray,
 				                                         self.encode, get_minibatches)
