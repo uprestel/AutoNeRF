@@ -283,7 +283,7 @@ class NeRF():
 		self.encode = lambda x: positional_encoding(x, num_encoding_functions=num_encoding_functions)
 
 	# One iteration of TinyNeRF (forward pass).
-	def run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
+	def run_one_iter_of_tinynerf(self, height, width, focal_length, tform_cam2world,
 	                             near_thresh, far_thresh, depth_samples_per_ray,
 	                             encoding_function, get_minibatches_function):
 	    
@@ -320,7 +320,7 @@ class NeRF():
 	    return rgb_predicted
 
 
-	def nerf_inference(height, width, focal_length, tform_cam2world,
+	def nerf_inference(self, height, width, focal_length, tform_cam2world,
 	                             near_thresh, far_thresh, depth_samples_per_ray,
 	                             encoding_function, get_minibatches_function):
 	    with torch.no_grad():
