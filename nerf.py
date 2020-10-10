@@ -2,6 +2,17 @@ import torch
 import torch.nn as nn
 
 from typing import Optional
+import matplotlib.pyplot as plt
+
+
+
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+
+#--------------------------------------------------------------------------------------------------------------------
 
 def get_minibatches(inputs: torch.Tensor, chunksize: Optional[int] = 1024 * 8):
 	r"""Takes a huge tensor (ray "bundle") and splits it into a list of minibatches.
@@ -11,7 +22,7 @@ def get_minibatches(inputs: torch.Tensor, chunksize: Optional[int] = 1024 * 8):
 	return [inputs[i:i + chunksize] for i in range(0, inputs.shape[0], chunksize)]
 
 
-
+#--------------------------------------------------------------------------------------------------------------------
 def meshgrid_xy(tensor1: torch.Tensor, tensor2: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     """Mimick np.meshgrid(..., indexing="xy") in pytorch. torch.meshgrid only allows "ij" indexing.
     (If you're unsure what this means, safely skip trying to understand this, and run a tiny example!)
@@ -25,7 +36,7 @@ def meshgrid_xy(tensor1: torch.Tensor, tensor2: torch.Tensor) -> (torch.Tensor, 
     return ii.transpose(-1, -2), jj.transpose(-1, -2)
 
 
-def cumprod_exclusive(tensor: torch.Tensor) -> torch.Tensor:
+def cumprod_exclusive(tensor: torch.Tensor):
 	r"""Mimick functionality of tf.math.cumprod(..., exclusive=True), as it isn't available in PyTorch.
 
 	Args:
@@ -48,7 +59,7 @@ def cumprod_exclusive(tensor: torch.Tensor) -> torch.Tensor:
 
 	return cumprod
 
-
+#--------------------------------------------------------------------------------------------------------------------
 def get_ray_bundle(height: int, width: int, focal_length: float, tform_cam2world: torch.Tensor):
 	r"""Compute the bundle of rays passing through all pixels of an image (one ray per pixel).
 
@@ -83,7 +94,7 @@ def get_ray_bundle(height: int, width: int, focal_length: float, tform_cam2world
 	return ray_origins, ray_directions
 
 
-
+#--------------------------------------------------------------------------------------------------------------------
 def compute_query_points_from_rays(
 	ray_origins: torch.Tensor,
 	ray_directions: torch.Tensor,
@@ -134,7 +145,7 @@ def compute_query_points_from_rays(
 	return query_points, depth_values
 
 
-
+#--------------------------------------------------------------------------------------------------------------------
 def render_volume_density(
 	radiance_field: torch.Tensor,
 	ray_origins: torch.Tensor,
@@ -174,10 +185,10 @@ def render_volume_density(
 	return rgb_map, depth_map, acc_map
 
 
-
+#--------------------------------------------------------------------------------------------------------------------
 def positional_encoding(
     tensor, num_encoding_functions=6, include_input=True, log_sampling=True
-	) -> torch.Tensor:
+	):
     r"""Apply positional encoding to the input.
 
     Args:
@@ -226,6 +237,7 @@ def positional_encoding(
         return torch.cat(encoding, dim=-1)
 
 
+#--------------------------------------------------------------------------------------------------------------------
 class TinyNerfModel(torch.nn.Module):
 	r"""Define a "very tiny" NeRF model comprising three fully connected layers.
 	"""
@@ -253,11 +265,22 @@ class TinyNerfModel(torch.nn.Module):
 		return x
 
 
+#--------------------------------------------------------------------------------------------------------------------
 class NeRF():
-	def __init__(self, filter_size=128, num_encoding_functions=6):
+	def __init__(self, filter_size=128, num_encoding_functions=6, depth_samples_per_ray=228, near_thresh=2., far_thresh=6., batch_chunksize=16384):
 		
+		# We create our tiny nerf model
 		self.model = TinyNerfModel(filter_size, num_encoding_functions)
 
+		# We store parameters for our model
+		self.filter_size = filter_size
+		self.num_encoding_functions = num_encoding_functions
+		self.depth_samples_per_ray = depth_samples_per_ray
+		self.near_thresh = near_thresh
+		self.far_thresh = far_thresh
+		self.chunksize = batch_chunksize
+
+		self.encode = lambda x: positional_encoding(x, num_encoding_functions=num_encoding_functions)
 
 	# One iteration of TinyNeRF (forward pass).
 	def run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
@@ -270,7 +293,7 @@ class NeRF():
 	    
 	    # Sample query points along each ray
 	    query_points, depth_values = compute_query_points_from_rays(
-	        ray_origins, ray_directions, near_thresh, far_thresh, depth_samples_per_ray
+	        ray_origins, ray_directions, self.near_thresh, self.far_thresh, self.depth_samples_per_ray
 	    )
 
 	    # "Flatten" the query points.
@@ -281,7 +304,7 @@ class NeRF():
 
 	    # Split the encoded points into "chunks", run the model on all chunks, and
 	    # concatenate the results (to avoid out-of-memory issues).
-	    batches = get_minibatches_function(encoded_points, chunksize=chunksize)
+	    batches = get_minibatches_function(encoded_points, chunksize=self.chunksize)
 	    predictions = []
 	    for batch in batches:
 	        predictions.append(self.model(batch))
@@ -302,8 +325,69 @@ class NeRF():
 	                             encoding_function, get_minibatches_function):
 	    with torch.no_grad():
 	        prediction = run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
-	                             near_thresh, far_thresh, depth_samples_per_ray,
+	                             self.near_thresh, self.far_thresh, self.depth_samples_per_ray,
 	                             encoding_function, get_minibatches_function)
 	    torch.cuda.empty_cache()
 	    return prediction
+
+
+
+	def train(self, num_iters, lr = 5e-3, silent=False):
+
+		optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+
+		# Seed RNG, for repeatability
+		seed = 9458
+		torch.manual_seed(seed)
+		np.random.seed(seed)
+
+		# Lists to log metrics etc.
+		psnrs = []
+		iternums = []
+
+
+		for i in range(num_iters):
+
+			# Randomly pick an image as the target.
+			target_img_idx = np.random.randint(images.shape[0])
+			target_img = images[target_img_idx].to(device)
+			target_tform_cam2world = tform_cam2world[target_img_idx].to(device)
+
+			# Run one iteration of TinyNeRF and get the rendered RGB image.
+			rgb_predicted = run_one_iter_of_tinynerf(height, width, focal_length,
+			                                       target_tform_cam2world, self.near_thresh,
+			                                       self.far_thresh, self.depth_samples_per_ray,
+			                                       self.encode, get_minibatches)
+
+			# Compute mean-squared error between the predicted and target images. Backprop!
+			loss = torch.nn.functional.mse_loss(rgb_predicted, target_img)
+			loss.backward()
+			optimizer.step()
+			optimizer.zero_grad()
+
+			# Display images/plots/stats
+			if i % display_every == 0:
+				# Render the held-out view
+				rgb_predicted = run_one_iter_of_tinynerf(height, width, focal_length,
+				                                         testpose, self.near_thresh,
+				                                         self.far_thresh, self.depth_samples_per_ray,
+				                                         self.encode, get_minibatches)
+				loss = torch.nn.functional.mse_loss(rgb_predicted, target_img)
+				print("Loss:", loss.item())
+				psnr = -10. * torch.log10(loss)
+
+				psnrs.append(psnr.item())
+				iternums.append(i)
+
+				plt.figure(figsize=(10, 4))
+				plt.subplot(121)
+				plt.imshow(rgb_predicted.detach().cpu().numpy())
+				plt.title("Iteration ", i)
+				plt.subplot(122)
+				plt.plot(iternums, psnrs)
+				plt.title("PSNR")
+				plt.show()
+
+		print('Done!')
 
