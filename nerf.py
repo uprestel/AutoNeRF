@@ -269,7 +269,7 @@ class TinyNerfModel(torch.nn.Module):
 # One iteration of TinyNeRF (forward pass).
 def run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
                              near_thresh, far_thresh, depth_samples_per_ray,
-                             encoding_function, get_minibatches_function):
+                             encoding_function, get_minibatches_function, chunksize):
     
     # Get the "bundle" of rays through all image pixels.
     ray_origins, ray_directions = get_ray_bundle(height, width, focal_length,
