@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 
 
 
+# Chunksize (Note: this isn't batchsize in the conventional sense. This only
+# specifies the number of rays to be queried in one go. Backprop still happens
+# only after all rays from the current "bundle" are queried and rendered).
+chunksize = 16384  # Use chunksize of about 4096 to fit in ~1.4 GB of GPU memory.
+
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -269,7 +275,7 @@ class TinyNerfModel(torch.nn.Module):
 # One iteration of TinyNeRF (forward pass).
 def run_one_iter_of_tinynerf(height, width, focal_length, tform_cam2world,
                              near_thresh, far_thresh, depth_samples_per_ray,
-                             encoding_function, get_minibatches_function, chunksize):
+                             encoding_function, get_minibatches_function):
     
     # Get the "bundle" of rays through all image pixels.
     ray_origins, ray_directions = get_ray_bundle(height, width, focal_length,
