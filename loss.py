@@ -15,6 +15,9 @@ class Loss(nn.Module):
         self.config = config
 
     def forward(self, sample, logdet, global_step):
+        
+        # global_step: ignore!!!
+
         nll_loss = torch.mean(nll(sample))
         assert len(logdet.shape) == 1
         nlogdet_loss = -torch.mean(logdet)
