@@ -5,9 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 
-from AutoNeRF.blocks import ActNorm, ConditionalFlow, FeatureLayer, DenseEncoderLayer
-from AutoNeRF.util io import retrieve
-
+from AutoNeRF.blocks import ConditionalFlow
 
 
 
@@ -30,7 +28,6 @@ class ConditionalTransformer(nn.Module):
     Conditional Invertible Neural Network.
     Can be conditioned both on input with spatial dimension (i.e. a tensor of shape BxCxHxW) and a flat input
     (i.e. a tensor of shape BxC)
-
     Our activation function is a LRELU
     """
     def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth, 

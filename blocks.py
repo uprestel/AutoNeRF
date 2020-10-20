@@ -202,7 +202,6 @@ class ConditionalFlatDoubleCouplingFlowBlock(nn.Module):
             * apply activation function (lrelu)
             * apply our coupling
             * shuffle the input
-
     """
     def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth, activation="lrelu"):
         super().__init__()
@@ -329,4 +328,3 @@ class ConditionalFlow(nn.Module):
 
     def reverse(self, out, xcond):
         return self(out, xcond, reverse=True)
-

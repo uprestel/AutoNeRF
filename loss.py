@@ -2,7 +2,6 @@ import numpy as np
 import torch.nn as nn
 import torch
 
-from AutoNeRF.util import retrieve
 
 
 def nll(sample):
