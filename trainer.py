@@ -54,32 +54,32 @@ def get_learning_rate(config):
     return learning_rate
 
 
-def interpolate_corners(z, side=5, permute=False):
-    """
-        Interpolate the first four encodings obtained from z.
-        :param z: tensor of shape bs x nc x iw x ih
-    """
-    device = z.get_device()
-    if permute:
-        ridx = torch.randperm(z.size(0))
-        z = z[ridx]
-    n = side * side
-    xv, yv = np.meshgrid(np.linspace(0, 1, side),
-                         np.linspace(0, 1, side))
-    xv = xv.reshape(n, 1, 1, 1)
-    yv = yv.reshape(n, 1, 1, 1)
+# def interpolate_corners(z, side=5, permute=False):
+#     """
+#         Interpolate the first four encodings obtained from z.
+#         :param z: tensor of shape bs x nc x iw x ih
+#     """
+#     device = z.get_device()
+#     if permute:
+#         ridx = torch.randperm(z.size(0))
+#         z = z[ridx]
+#     n = side * side
+#     xv, yv = np.meshgrid(np.linspace(0, 1, side),
+#                          np.linspace(0, 1, side))
+#     xv = xv.reshape(n, 1, 1, 1)
+#     yv = yv.reshape(n, 1, 1, 1)
 
-    xv, yv = torch.tensor(xv).to(device).float(), torch.tensor(yv).to(device).float()
+#     xv, yv = torch.tensor(xv).to(device).float(), torch.tensor(yv).to(device).float()
 
-    z_interp = \
-        z[0] * (1 - xv) * (1 - yv) + \
-        z[1] * xv * (1 - yv) + \
-        z[2] * (1 - xv) * yv + \
-        z[3] * xv * yv
+#     z_interp = \
+#         z[0] * (1 - xv) * (1 - yv) + \
+#         z[1] * xv * (1 - yv) + \
+#         z[2] * (1 - xv) * yv + \
+#         z[3] * xv * yv
 
-    if permute:
-        return z_interp, ridx
-    return z_interp, None
+#     if permute:
+#         return z_interp, ridx
+#     return z_interp, None
 
 
 #--------------------------------------------------------------------------------------------------------------------
@@ -184,8 +184,8 @@ class Trainer(Iterator):
     def tonp(self, x, guess_image=True):
         return tonp(x, guess_image=guess_image)
 
-    def interpolate_corners(self, x, num_side, permute=False):
-        return interpolate_corners(x, side=num_side, permute=permute)
+    # def interpolate_corners(self, x, num_side, permute=False):
+    #     return interpolate_corners(x, side=num_side, permute=permute)
 
     def step_op(self, model, **kwargs):
         return model.step_op(iterator=self, **kwargs)

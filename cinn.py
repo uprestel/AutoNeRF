@@ -11,38 +11,12 @@ from AutoNeRF.util io import retrieve
 
 
 
-# class DenseEmbedder(nn.Module):
-#     """
-#         Basically an MLP. Maps vector-like features to some other vector of given dimenionality
-    
-#         This implements H(y) as defined in the paper
-#     """
-      
-#     def __init__(self, in_dim, up_dim, depth=4, given_dims=None):
-#         super().__init__()
-#         self.net = nn.ModuleList()
-#         if given_dims is not None:
-#             assert given_dims[0] == in_dim
-#             assert given_dims[-1] == up_dim
-#             dims = given_dims
-#         else:
-#             dims = np.linspace(in_dim, up_dim, depth).astype(int)
-#         for l in range(len(dims) - 2):
-#             self.net.append(nn.Conv2d(dims[l], dims[l + 1], 1))
-#             self.net.append(ActNorm(dims[l + 1]))
-#             self.net.append(nn.LeakyReLU(0.2))
-
-#         self.net.append(nn.Conv2d(dims[-2], dims[-1], 1))
-
-#     def forward(self, x):
-#         for layer in self.net:
-#             x = layer(x)
-#         return x.squeeze(-1).squeeze(-1)
-
-
-
 
 class SimpleEmbedder(nn.Module):
+    """
+    This module is the (simple) replacement for the conditioning function H(x) := x
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -50,39 +24,14 @@ class SimpleEmbedder(nn.Module):
         return x
 
 
-# class Embedder(nn.Module):
-    # """Embeds a 4-dim tensor onto dense latent code.
-    
-    # TODO: annotate
-    
-    # """
-
-    # def __init__(self, in_spatial_size, in_channels, emb_dim, n_down=4):
-        # super().__init__()
-        # self.feature_layers = nn.ModuleList()
-        # norm = 'an'  # hard coded
-        # bottleneck_size = in_spatial_size // 2 ** n_down
-        # self.feature_layers.append(FeatureLayer(0, in_channels=in_channels, norm=norm))
-        # for scale in range(1, n_down):
-            # self.feature_layers.append(FeatureLayer(scale, norm=norm))
-        # self.dense_encode = DenseEncoderLayer(n_down, bottleneck_size, emb_dim)
-        # if n_down == 1:
-            # print(" Warning: Embedder for ConditionalTransformer has only one down-sampling step. You might want to "
-                  # "increase its capacity.")
-
-    # def forward(self, input):
-        # h = input
-        # for layer in self.feature_layers:
-            # h = layer(h)
-        # h = self.dense_encode(h)
-        # return h.squeeze(-1).squeeze(-1)
-
 
 class ConditionalTransformer(nn.Module):
     """
     Conditional Invertible Neural Network.
     Can be conditioned both on input with spatial dimension (i.e. a tensor of shape BxCxHxW) and a flat input
     (i.e. a tensor of shape BxC)
+
+    Our activation function is a LRELU
     """
     def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth, 
         n_flows, conditioning_option="none", activation="lrelu"):
@@ -95,68 +44,19 @@ class ConditionalTransformer(nn.Module):
             conditioning_option: ----
             activation: ----
         """
-        import torch.backends.cudnn as cudnn
-        cudnn.benchmark = True
+
+        # ** experimental **
+        #import torch.backends.cudnn as cudnn
+        #cudnn.benchmark = True
         super().__init__()
-        #self.config = config
-        # -------- get all the hyperparameters ---------
-        
-        # the size of the input. This should be divisible by 2.
-        #in_channels = retrieve(config, "Transformer/in_channels")
-        
-        # the dimension of the hidden layers for s and t.
-        #hidden_dim = retrieve(config, "Transformer/hidden_dim")
-        
-        # number of hidden layers / depth in s_theta and t_theta respectively
-        #hidden_depth = retrieve(config, "Transformer/hidden_depth")
-        
-        # number of cINN blocks in our final network
-        #n_flows = retrieve(config, "Transformer/n_flows")
-        
-        # how the conditioning y is handled. Possible values: none, sequential, parallel
-        #conditioning_option = retrieve(config, "Transformer/conditioning_option")
-        
-        # the activation function of s and t respectively.
-        #flowactivation = retrieve(config, "Transformer/activation", default="lrelu")
-        
-        # TODO: annotate
-        #embedding_channels = in_channels# retrieve(config, "Transformer/embedding_channels", default=in_channels)
-        
-        ## TODO: annotate
-        #n_down = retrieve(config, "Transformer/embedder_down", default=4)
 
-        # --------------------- < stuff for the embedding >---------------
-        # Number of the dimensions of the input y of H(y) in the paper. 
-        # ** we choose =1 **, since we want a fully connected embedder
-        #conditioning_spatial_size = 1 #retrieve(config, "Transformer/conditioning_spatial_size")
-        
-        # the dimension of the input of our conditioning network H
-        #conditioning_in_channels = retrieve(config, "Transformer/conditioning_in_channels")
-
-        # ------------------------------------------------
-
-        #self.emb_channels = embedding_channels
-        #self.in_channels = in_channels
 
         self.flow = ConditionalFlow(in_channels=in_channels, cond_channels=cond_channels, hidden_dim=hidden_dim,
                                     hidden_depth=hidden_depth, n_flows=n_flows, conditioning_option=conditioning_option,
-                                    activation=flowactivation)
+                                    activation=activation)
 
         self.embedder = SimpleEmbedder()
 
-        #if conditioning_spatial_size == 1:
-        #    depth = 4 #retrieve(config, "Transformer/conditioning_depth",
-        #                     #default=4)
-        #    dims = "none" #retrieve(config, "Transformer/conditioning_dims",
-        #                    #default="none")
-        #    dims = None if dims == "none" else dims
-        #    self.embedder = DenseEmbedder(conditioning_in_channels,
-        #                                  in_channels,
-        #                                  depth=depth,
-        #                                  given_dims=dims)
-        #else:
-        #    pass
-            #self.embedder = Embedder(conditioning_spatial_size, conditioning_in_channels, in_channels, n_down=n_down)
 
     def embed(self, conditioning):
         # embed y via embedding layer H(.)
@@ -181,244 +81,3 @@ class ConditionalTransformer(nn.Module):
     def reverse(self, out, conditioning):
         embedding = self.embed(conditioning)
         return self.flow(out, embedding, reverse=True)
-
-    def get_last_layer(self):
-        return getattr(self.flow.sub_layers[-1].coupling.t[-1].main[-1], 'weight')
-
-    # @classmethod
-    # def from_pretrained(cls, name, config=None):
-    #     if name not in URL_MAP:
-    #         raise NotImplementedError(name)
-    #     if config is None:
-    #         config = CONFIG_MAP[name]
-    #
-    #     model = cls(config)
-    #     ckpt = get_ckpt_path(name)
-    #     model.load_state_dict(torch.load(ckpt, map_location=torch.device("cpu")))
-    #     model.eval()
-    #     return model
-    
-    
-# CONFIG_MAP = {
-#     "cinn_alexnet_aae_conv5":
-#         {"Transformer": {
-#               "activation": "none",
-#               "conditioning_option": "none",
-#               "hidden_depth": 2,
-#               "in_channels": 128,
-#               "hidden_dim": 1024,
-#               "n_flows": 20,
-#               "conditioning_in_channels": 256,
-#               "conditioning_spatial_size": 13,
-#               "embedder_down": 2,
-#             }
-#         },
-#     "cinn_alexnet_aae_fc6":
-#         {"Transformer": {
-#                       "activation": "none",
-#                       "conditioning_option": "none",
-#                       "hidden_depth": 2,
-#                       "in_channels": 128,
-#                       "hidden_dim": 1024,
-#                       "n_flows": 20,
-#                       "conditioning_in_channels": 4096,
-#                       "conditioning_spatial_size": 1,
-#                       "embedder_down": 3,
-#                     }
-#                 },
-#     "cinn_alexnet_aae_fc7":
-#         {"Transformer": {
-#                       "activation": "none",
-#                       "conditioning_option": "none",
-#                       "hidden_depth": 2,
-#                       "in_channels": 128,
-#                       "hidden_dim": 1024,
-#                       "n_flows": 20,
-#                       "conditioning_in_channels": 4096,
-#                       "conditioning_spatial_size": 1,
-#                       "embedder_down": 3,
-#                     }
-#                 },
-#     "cinn_alexnet_aae_fc8":
-#         {"Transformer": {
-#                       "activation": "none",
-#                       "conditioning_option": "none",
-#                       "hidden_depth": 2,
-#                       "in_channels": 128,
-#                       "hidden_dim": 1024,
-#                       "n_flows": 20,
-#                       "conditioning_in_channels": 1000,
-#                       "conditioning_spatial_size": 1,
-#                       "embedder_down": 3,
-#                     }
-#                 },
-#     "cinn_alexnet_aae_softmax":
-#         {"Transformer": {
-#             "activation": "none",
-#             "conditioning_option": "none",
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 1000,
-#             "conditioning_spatial_size": 1,
-#             "embedder_down": 3,
-#             }
-#         },
-#     "cinn_stylizedresnet_avgpool":
-#         {"Transformer": {
-#             "activation": "none",
-#             "conditioning_option": "none",
-#             "hidden_depth": 2,
-#             "in_channels": 268,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 2048,
-#             "conditioning_spatial_size": 1,
-#             "embedder_down": 3,
-#             }
-#         },
-#     "cinn_resnet_avgpool":
-#         {"Transformer": {
-#             "activation": "none",
-#             "conditioning_option": "none",
-#             "hidden_depth": 2,
-#             "in_channels": 268,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 2048,
-#             "conditioning_spatial_size": 1,
-#             "embedder_down": 3,
-#             }
-#         },
-#     "resnet101_animalfaces_shared":
-#         {"Model": {
-#             "n_classes": 149,
-#             "type": "resnet101"
-#             }
-#         },
-
-#     "resnet101_animalfaces_10":
-#         {"Model": {
-#                 "n_classes": 10,
-#                 "type": "resnet101"
-#                 }
-#         },
-#     "cinn_resnet_animalfaces10_ae_maxpool":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 64,
-#             "conditioning_spatial_size": 56,
-#             "embedder_down": 4,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_input":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 3,
-#             "conditioning_spatial_size": 224,
-#             "embedder_down": 5,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_layer1":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 256,
-#             "conditioning_spatial_size": 56,
-#             "embedder_down": 4,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_layer2":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 512,
-#             "conditioning_spatial_size": 28,
-#             "embedder_down": 3,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_layer3":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 1024,
-#             "conditioning_spatial_size": 14,
-#             "embedder_down": 2,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_layer4":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 2048,
-#             "conditioning_spatial_size": 7,
-#             "embedder_down": 1,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_avgpool":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 2048,
-#             "conditioning_spatial_size": 1,
-#             "conditioning_depth": 6,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_fc":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 10,
-#             "conditioning_spatial_size": 1,
-#             "conditioning_depth": 4,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-#     "cinn_resnet_animalfaces10_ae_softmax":
-#         {"Transformer": {
-#             "hidden_depth": 2,
-#             "in_channels": 128,
-#             "hidden_dim": 1024,
-#             "n_flows": 20,
-#             "conditioning_in_channels": 10,
-#             "conditioning_spatial_size": 1,
-#             "conditioning_depth": 4,
-#             "activation": "none",
-#             "conditioning_option": "none"
-#             }
-#         },
-# }

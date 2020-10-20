@@ -22,7 +22,7 @@ class BasicFullyConnectedNet(nn.Module):
         layers = []
         layers.append(nn.Linear(dim, hidden_dim))
 
-        # Add batch norm layer?
+        # Add batch norm layer
         if use_bn:
             layers.append(nn.BatchNorm1d(hidden_dim))
         layers.append(nn.LeakyReLU())
@@ -244,62 +244,6 @@ class ConditionalFlatDoubleCouplingFlowBlock(nn.Module):
 
 
 #--------------------------------------------------------------------------------------------------------------------
-class ConditionalFlow(nn.Module):
-    """Flat version. Feeds an embedding into the flow in every block"""
-
-    def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth,
-                 n_flows, conditioning_option="none", activation='lrelu'):
-        super().__init__()
-        self.in_channels = in_channels                  # the size of the input. This should be divisible by 2.
-        self.cond_channels = cond_channels              # the size of the conditional H(y).
-        self.mid_channels = hidden_dim                  # the dimension of the hidden layers for s and t.
-        self.num_blocks = hidden_depth                  # number of hidden layers / depth in s_theta and t_theta respectively
-        self.n_flows = n_flows                          # number of cINN blocks in our final network
-        self.conditioning_option = conditioning_option  # how the conditioning y is handled. Possible values: none, sequential, parallel
-
-        self.sub_layers = nn.ModuleList()
-        if self.conditioning_option.lower() != "none":
-            self.conditioning_layers = nn.ModuleList()
-
-        for flow in range(self.n_flows):
-            self.sub_layers.append(
-                ConditionalFlatDoubleCouplingFlowBlock(
-                    self.in_channels, self.cond_channels, self.mid_channels,
-                    self.num_blocks, activation=activation)
-            )
-            if self.conditioning_option.lower() != "none":
-                self.conditioning_layers.append(nn.Conv2d(self.cond_channels, self.cond_channels, 1))
-
-    def forward(self, x, embedding, reverse=False):
-        hconds = list()
-        hcond = embedding[:, :, None, None]
-        self.last_outs = []
-        self.last_logdets = []
-        for i in range(self.n_flows):
-            if self.conditioning_option.lower() == "parallel":
-                hcond = self.conditioning_layers[i](embedding)
-            elif self.conditioning_option.lower() == "sequential":
-                hcond = self.conditioning_layers[i](hcond)
-            hconds.append(hcond)
-        if not reverse:
-            logdet = 0.0
-            for i in range(self.n_flows):
-                x, logdet_ = self.sub_layers[i](x, hconds[i])
-                logdet = logdet + logdet_
-                self.last_outs.append(x)
-                self.last_logdets.append(logdet)
-            return x, logdet
-        else:
-            for i in reversed(range(self.n_flows)):
-                x = self.sub_layers[i](x, hconds[i], reverse=True)
-            return x
-
-    def reverse(self, out, xcond):
-        return self(out, xcond, reverse=True)
-
-
-
-
 class Shuffle(nn.Module):
     """
         TODO: Annotate
@@ -318,23 +262,7 @@ class Shuffle(nn.Module):
             return x[:, self.backward_shuffle_idx, ...]
 
 
-#class IgnoreLeakyRelu(nn.Module):
-#    """performs identity op."""
-#
-#    def __init__(self, alpha=0.9):
-#        super().__init__()
-#
-#    def forward(self, input, reverse=False):
-#        if reverse:
-#            return self.reverse(input)
-#        h = input
-#        return h, 0.0
-#
-#    def reverse(self, input):
-#        h = input
-#        return h
-
-
+#--------------------------------------------------------------------------------------------------------------------
 class InvLeakyRelu(nn.Module):
     def __init__(self, alpha=0.9):
         super().__init__()
@@ -353,84 +281,52 @@ class InvLeakyRelu(nn.Module):
         return h
 
 
-#class InvParametricRelu(InvLeakyRelu):
-#    def __init__(self, alpha=0.9):
-#        super().__init__()
-#        self.alpha = nn.Parameter(torch.tensor(alpha), requires_grad=True)
 
+#--------------------------------------------------------------------------------------------------------------------
+class ConditionalFlow(nn.Module):
+    """Flat version. Feeds an embedding into the flow in every block"""
 
-# class FeatureLayer(nn.Module):
-#     """
-#         TODO: Annotate
-#     """
-#     def __init__(self, scale, in_channels=None, norm='AN', width_multiplier=1):
-#         super().__init__()
+    def __init__(self, in_channels, cond_channels, hidden_dim, hidden_depth,
+                 n_flows, conditioning_option="none", activation='lrelu'):
+        super().__init__()
+        self.in_channels = in_channels                  # the size of the input. This should be divisible by 2.
+        self.cond_channels = cond_channels              # the size of the conditional H(y).
+        self.mid_channels = hidden_dim                  # the dimension of the hidden layers for s and t.
+        self.num_blocks = hidden_depth                  # number of hidden layers / depth in s_theta and t_theta respectively
+        self.n_flows = n_flows                          # number of cINN blocks in our final network
+        self.conditioning_option = conditioning_option  # how the conditioning y is handled. Possible values: none, sequential, parallel
 
-#         norm_options = {
-#             "in": nn.InstanceNorm2d,
-#             "bn": nn.BatchNorm2d,
-#             "an": ActNorm}
+        self.sub_layers = nn.ModuleList()               
 
-#         self.scale = scale
-#         self.norm = norm_options[norm.lower()]
-#         self.wm = width_multiplier
-#         if in_channels is None:
-#             self.in_channels = int(self.wm * 64 * min(2 ** (self.scale - 1), 16))
-#         else:
-#             self.in_channels = in_channels
-#         self.out_channels = int(self.wm * 64 * min(2 ** self.scale, 16))
-#         self.build()
+        for flow in range(self.n_flows):
+            self.sub_layers.append(
+                ConditionalFlatDoubleCouplingFlowBlock(
+                    self.in_channels, self.cond_channels, self.mid_channels,
+                    self.num_blocks, activation=activation)
+            )
 
-#     def forward(self, input):
-#         x = input
-#         for layer in self.sub_layers:
-#             x = layer(x)
-#         return x
+    def forward(self, x, embedding, reverse=False):
+        hconds = list()
+        hcond = embedding[:, :, None, None]
+        self.last_outs = []
+        self.last_logdets = []
+        for i in range(self.n_flows):
+            hconds = embedding
+            hconds.append(hcond)
+            
+        if not reverse:
+            logdet = 0.0
+            for i in range(self.n_flows):
+                x, logdet_ = self.sub_layers[i](x, hconds[i])
+                logdet = logdet + logdet_
+                self.last_outs.append(x)
+                self.last_logdets.append(logdet)
+            return x, logdet
+        else:
+            for i in reversed(range(self.n_flows)):
+                x = self.sub_layers[i](x, hconds[i], reverse=True)
+            return x
 
-#     def build(self):
-#         Norm = functools.partial(self.norm, affine=True)
-#         Activate = lambda: nn.LeakyReLU(0.2)
-#         self.sub_layers = nn.ModuleList([
-#             nn.Conv2d(
-#                 in_channels=self.in_channels,
-#                 out_channels=self.out_channels,
-#                 kernel_size=4,
-#                 stride=2,
-#                 padding=1,
-#                 bias=False),
-#             Norm(num_features=self.out_channels),
-#             Activate()])
+    def reverse(self, out, xcond):
+        return self(out, xcond, reverse=True)
 
-
-# class DenseEncoderLayer(nn.Module):
-#     """
-#         TODO: Annotate
-#     """
-#     def __init__(self, scale, spatial_size, out_size, in_channels=None,
-#                  width_multiplier=1):
-#         super().__init__()
-#         self.scale = scale
-#         self.wm = width_multiplier
-#         self.in_channels = int(self.wm * 64 * min(2 ** (self.scale - 1), 16))
-#         if in_channels is not None:
-#             print('Warning: Ignoring `scale` parameter in DenseEncoderLayer due to given number of input channels.')
-#             self.in_channels = in_channels
-#         self.out_channels = out_size
-#         self.kernel_size = spatial_size
-#         self.build()
-
-#     def forward(self, input):
-#         x = input
-#         for layer in self.sub_layers:
-#             x = layer(x)
-#         return x
-
-#     def build(self):
-#         self.sub_layers = nn.ModuleList([
-#             nn.Conv2d(
-#                 in_channels=self.in_channels,
-#                 out_channels=self.out_channels,
-#                 kernel_size=self.kernel_size,
-#                 stride=1,
-#                 padding=0,
-#                 bias=True)])
