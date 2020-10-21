@@ -1,8 +1,3 @@
-import torch
-import torch.nn as nn
-import functools
-
-
 class BasicFullyConnectedNet(nn.Module):
     """
         This class implements the architectures used in s and t.
@@ -42,10 +37,10 @@ class BasicFullyConnectedNet(nn.Module):
 
 
     def forward(self, x):
-        #print("in BFCN", self.main)
+        
         z = x
         for layer in self.main:
-            #print("at", layer, "with", x.shape)
+     
             z = layer(z)
 
         return z
@@ -93,9 +88,8 @@ class ConditionalDoubleVectorCouplingBlock(nn.Module):
                     x = torch.cat(torch.chunk(x, 2, dim=1)[::-1], dim=1)
                 x = torch.chunk(x, 2, dim=1)
                 conditioner_input = torch.cat((x[idx_apply], xc), dim=1)
-                
                 scale = self.s[i](conditioner_input)
-                print(x[idx_keep].shape , scale.exp().shape)
+
                 x_ = x[idx_keep] * scale.exp() + self.t[i](conditioner_input)
                 x = torch.cat((x[idx_apply], x_), dim=1)
                 logdet_ = torch.sum(scale, dim=1)
@@ -310,7 +304,7 @@ class ConditionalFlow(nn.Module):
         self.last_outs = []
         self.last_logdets = []
         for i in range(self.n_flows):
-            hconds = embedding
+            hcond = embedding
             hconds.append(hcond)
             
         if not reverse:
@@ -328,3 +322,4 @@ class ConditionalFlow(nn.Module):
 
     def reverse(self, out, xcond):
         return self(out, xcond, reverse=True)
+
