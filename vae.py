@@ -1,20 +1,26 @@
 import torch
-from torch import nn
-from torch.nn import functional as F
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import torch.nn as nn
+import torch.nn.functional as F
 
 
-class VAE(nn.Module):
-    def __init__(self, in_channels: int, latent_dim: int, **kwargs):
-        super(VAE, self).__init__()
+
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
+
+
+
+
+
+
+
+class Encoder(nn.Module):
+    def __init__(self, in_channels, latent_dim):
+        super(Encoder, self).__init__()
 
         self.latent_dim = latent_dim
-
+        hidden_dims = [32, 64, 128, 256, 512, 1024]
         modules = []
         
-        hidden_dims = [32, 64, 128, 256, 512, 1024]
-
-        # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
@@ -26,18 +32,31 @@ class VAE(nn.Module):
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
-
         self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
         self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
 
 
-        # Build Decoder
+    def forward(self, x):
+        result=x
+        for layer in self.encoder:
+            result = layer(result)
+        result = torch.flatten(result, start_dim=1)
+        mu = self.fc_mu(result)
+        log_var = self.fc_var(result)
+        return [mu, log_var]
+
+
+
+
+class Decoder(nn.Module):
+    def __init__(self, in_channels, latent_dim):
+        super(Decoder, self).__init__()
+
+        self.latent_dim = latent_dim
+        hidden_dims = [32, 64, 128, 256, 512, 1024]
         modules = []
-
         self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
-
         hidden_dims.reverse()
-
         padding_pattern = [1,0,0,0,1]
 
         for i in range(len(hidden_dims) - 1):
@@ -56,7 +75,6 @@ class VAE(nn.Module):
 
 
         self.decoder = nn.Sequential(*modules)
-
         self.final_layer = nn.Sequential(
                             nn.ConvTranspose2d(hidden_dims[-1],
                                                hidden_dims[-1],
@@ -68,110 +86,55 @@ class VAE(nn.Module):
                             nn.LeakyReLU(),
                             nn.Conv2d(hidden_dims[-1], out_channels= 3,
                                       kernel_size= 3, padding= 1),
-                            nn.Tanh())
+                            nn.Sigmoid())
 
-    def encode(self, input):
-        """
-        Encodes the input by passing through the encoder network
-        and returns the latent codes.
-        :param input: (Tensor) Input tensor to encoder [N x C x H x W]
-        :return: (Tensor) List of latent codes
-        """
-
-        result=input
-        for layer in self.encoder:
-            #print(result.shape)
-            #print(layer)
-            result = layer(result)
-        #print("here")
-        result = torch.flatten(result, start_dim=1)
-        #print("here2", result.shape)
-        
-        # Split the result into mu and var components
-        # of the latent Gaussian distribution
-        mu = self.fc_mu(result)
-        #print("here3")
-        log_var = self.fc_var(result)
-        #print("here4")
-        return [mu, log_var]
-
-    def call_decoder(self, x):
-        #print("---decode----")
-        result = x
-        for layer in self.decoder:
-            #print(layer)
-            #print(result.shape)
-            result = layer(result)
-        return result
-
-    def decode(self, z):
-        """
-        Maps the given latent codes
-        onto the image space.
-        :param z: (Tensor) [B x D]
-        :return: (Tensor) [B x C x H x W]
-        """
+    def forward(self, z):
         result = self.decoder_input(z)
-        #print("her5", result.shape)
-        #result = result.view(-1, 512, 2, 2)
         result = result.view(-1, 1024, 2, 2)
-        #print("here6", result.shape)
-        result = self.call_decoder(result)
-        #print("here7")
+        result = self.decoder(result)
         result = self.final_layer(result)
         return result
 
+
+
+
+
+class VAE(nn.Module):
+    def __init__(self, in_channels, latent_dim):
+        super(VAE, self).__init__()
+
+        self.latent_dim = latent_dim
+        self.encoder = Encoder(in_channels, latent_dim)
+        self.decoder = Decoder(in_channels, latent_dim)
+
+
     def reparameterize(self, mu, logvar):
-        """
-        Reparameterization trick to sample from N(mu, var) from
-        N(0,1).
-        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
-        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
-        :return: (Tensor) [B x D]
-        """
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def forward(self, input, **kwargs):
-        mu, log_var = self.encode(input)
+    def forward(self, input):
+        mu, log_var = self.encoder(input)
         z = self.reparameterize(mu, log_var)
-        return self.decode(z), mu, log_var
+        return self.decoder(z), mu, log_var, z
 
-    def loss_function(self,
-                      *args,
-                      **kwargs) -> dict:
+    def loss_function(self, recons, input, mu, log_var, kld_weight=1.):
         """
         Computes the VAE loss function.
-        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        recons = args[0]
-        input = args[1]
-        mu = args[2]
-        log_var = args[3]
 
-        kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
+        """
+        
         recons_loss =F.mse_loss(recons, input)
 
 
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
         loss = recons_loss + kld_weight * kld_loss
-        return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
+        return loss, recons_loss, -kld_loss
 
-    def sample(self,
-               num_samples:int,
-               current_device: int, **kwargs):
-        """
-        Samples from the latent space and return the corresponding
-        image space map.
-        :param num_samples: (Int) Number of samples
-        :param current_device: (Int) Device to run the model
-        :return: (Tensor)
-        """
+
+    def sample(self, num_samples, current_device):
+
         z = torch.randn(num_samples,
                         self.latent_dim)
 
@@ -180,25 +143,12 @@ class VAE(nn.Module):
         samples = self.decode(z)
         return samples
 
-    def generate(self, x, **kwargs):
-        """
-        Given an input image x, returns the reconstructed image
-        :param x: (Tensor) [B x C x H x W]
-        :return: (Tensor) [B x C x H x W]
-        """
 
-        return self.forward(x)[0]
 
 if __name__ == "__main__":
     # simple dimension debugging
 
     vae = VAE(in_channels=3, latent_dim=64).to(device)
-    # form: B x C x W x H
     x = torch.randn(1, 3, 100,100).to(device)
-    y, z_mu, z_logsig = vae(x)
+    y, z_mu, z_logsig, z = vae(x)
     print(y.shape, "ssss")
-    #torch.nn.Conv2d()
-    #xrec = vae.decode(z)
-    #print(z.shape)
-    #print(xrec.shape)
-    #print(x.shape, z.shape, y.shape)
