@@ -4,8 +4,8 @@ import torch.nn.functional as F
 
 
 
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cpu")
 
 
 
@@ -69,7 +69,7 @@ class Decoder(nn.Module):
                                        padding=1,
                                        output_padding=padding_pattern[i]),
                     nn.BatchNorm2d(hidden_dims[i + 1]),
-                    nn.LeakyReLU())
+                    nn.Tanh())
             )
 
 
@@ -149,6 +149,7 @@ if __name__ == "__main__":
     # simple dimension debugging
 
     vae = VAE(in_channels=3, latent_dim=64).to(device)
-    x = torch.randn(1, 3, 100,100).to(device)
-    y, z_mu, z_logsig, z = vae(x)
-    print(y.shape, "ssss")
+    print(vae.eval())
+    #x = torch.randn(1, 3, 100,100).to(device)
+    #y, z_mu, z_logsig, z = vae(x)
+    #print(y.shape, "ssss")
