@@ -69,7 +69,7 @@ class Decoder(nn.Module):
                                        padding=1,
                                        output_padding=padding_pattern[i]),
                     nn.BatchNorm2d(hidden_dims[i + 1]),
-                    nn.Tanh())
+                    nn.LeakyReLU())
             )
 
 
@@ -86,7 +86,7 @@ class Decoder(nn.Module):
                             nn.LeakyReLU(),
                             nn.Conv2d(hidden_dims[-1], out_channels= 3,
                                       kernel_size= 3, padding= 1),
-                            nn.Sigmoid())
+                            nn.Tanh())
 
     def forward(self, z):
         result = self.decoder_input(z)
