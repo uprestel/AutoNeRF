@@ -9,6 +9,7 @@ We demonstrate, that the architecture can easily be modified to estimate the pos
 
 
 ## Dataset
+* lego https://drive.google.com/file/d/1Gb0AbE3KPkJYDJnNgYtZG58ntuJNpVjQ/view?usp=sharing
 * chair https://drive.google.com/file/d/1kZoZyUoizT8ICnWBKt6OpBWdFHXdoICt/view?usp=sharing
 * hotdog https://drive.google.com/file/d/1Chp2-2odW-leLXgF4_MG_7d69ZAJOKwN/view?usp=sharing
 * (We use modified versions of the NeRF-datasets https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1)
