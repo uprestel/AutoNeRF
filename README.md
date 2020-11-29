@@ -1,6 +1,6 @@
 # AutoNeRF
-NeRF research project
 
+Report for this project [TODO]
 
 
 ## Abstract
