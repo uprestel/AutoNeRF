@@ -311,7 +311,7 @@ def run_one_iter_of_tinynerf(model, height, width, focal_length, tform_cam2world
 
 
 #--------------------------------------------------------------------------------------------------------------------
-def nerf_inference(model, height, width, focal_length, tform_cam2world,
+def nerf_prediction(model, height, width, focal_length, tform_cam2world,
                              near_thresh, far_thresh, depth_samples_per_ray,
                              encoding_function, get_minibatches_function):
     with torch.no_grad():
