@@ -7,6 +7,13 @@ NeRF research project
 The goal of the practical was to come up with a generative model that is able to generate novel views of a 3d scene very quickly and is trained with very few images of that scene. Ultimately, we combined multiple generative models, namely neural radiance fields (NeRF), a variational autoencoder (VAE) and a conditional invertible neural network (cINN). We carefully combine them to get a generative model that fits these criteria. As a result we obtain a very quick inference of novel views with only very few training images.
 We demonstrate, that the architecture can easily be modified to estimate the pose of the observer given an image.
 
+## How to run
+There are three notebooks provided, all of which are different parts of the pipeline
+* nerf_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/nerf_train.ipynb) This notebook trains the NeRF model and saves samples into a dataset.
+
+* cinn_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/cinn_train.ipynb)
+This notebook provides the training for the VAE and the cINN. It also allows to show the samples and render videos of both NeRF and our model for comparison
+* pose_train.ipynb [Coming soon]
 ## Samples
 
 ![sample](/images/samples.png)
