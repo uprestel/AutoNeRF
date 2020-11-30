@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import torch 
 import numpy as np
-
+import torchvision
 
 
 def swap_channels(x):
