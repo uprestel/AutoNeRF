@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 
-from AutoNeRF.blocks import ConditionalFlow
+from AutoNeRF.models.blocks import ConditionalFlow
 
 
 
