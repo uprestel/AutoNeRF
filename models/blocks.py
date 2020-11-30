@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.nn import BatchNorm1d
+
 
 
 
@@ -208,14 +208,7 @@ class ConditionalFlatDoubleCouplingFlowBlock(nn.Module):
         #__possible_activations = {"lrelu": InvLeakyRelu
                                   #"none": IgnoreLeakyRelu
         #                          }
-        
-        self.norm_layer = BatchNorm1d(in_channels)
-
-        #self.norm_layer = ActNorm(in_channels, logdet=True)
-        
-
-
-
+        self.norm_layer = ActNorm(in_channels, logdet=True)
         self.coupling = ConditionalDoubleVectorCouplingBlock(in_channels,
                                                              cond_channels,
                                                              hidden_dim,
@@ -335,4 +328,3 @@ class ConditionalFlow(nn.Module):
 
     def reverse(self, out, xcond):
         return self(out, xcond, reverse=True)
-
