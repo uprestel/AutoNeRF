@@ -12,7 +12,7 @@ There are three notebooks provided, all of which are different parts of the pipe
 * nerf_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/nerf_train.ipynb) This notebook trains the NeRF model and saves samples into a dataset.
 * cinn_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/cinn_train.ipynb)
 This notebook provides the training for the VAE and the cINN. It also allows to show the samples and render videos of both NeRF and our model for comparison
-* pose_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/pose_estimation.ipynb)
+* pose_train.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/uprestel/AutoNeRF/blob/master/pose_estimation.ipynb) This notebook is the experimental part of this project, where we slightly modify the architecture to do pose estimation. We also gather error statistics in this notebook.
 ## Samples
 
 ![sample](/images/samples.png)
