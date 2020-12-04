@@ -1,6 +1,6 @@
 # AutoNeRF
 
-Report for this project [TODO]
+Report for this project [here](Praktikum_Report.pdf)
 
 
 ## Abstract
