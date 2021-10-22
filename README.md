@@ -1,3 +1,4 @@
+Video samples: [here](https://youtu.be/1ovewzz6u78) and [ablation](https://youtu.be/lzlAp05DhwQ)
 # AutoNeRF
 
 Report for this project [here](Praktikum_Report.pdf)
